@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GIS Smart Irrigation Decision Support System</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg-900:#050e0a;--bg-800:#0a1a12;--bg-700:#0f2318;--bg-600:#152d1f;
+  --green-900:#052210;--green-800:#0a3d1a;--green-700:#0f5a28;--green-500:#1a9e3f;
+  --green-400:#22c55e;--green-300:#4ade80;--green-100:#bbf7d0;
+  --blue-900:#031520;--blue-800:#062535;--blue-600:#0a4a6e;--blue-500:#0e7ab5;
+  --blue-400:#38bdf8;--blue-300:#7dd3fc;
+  --amber:#f59e0b;--red:#ef4444;--purple:#a855f7;
+  --border:#1a3025;--border-bright:#255038;
+  --text-primary:#e8f5ee;--text-secondary:#7fb89a;--text-dim:#3d6b52;
+  --glass:rgba(10,26,18,0.75);--glass-bright:rgba(15,35,24,0.9);
+  --card-bg:rgba(10,26,18,0.6);--card-border:rgba(34,197,94,0.12);
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg-900);color:var(--text-primary);font-family:'Inter',sans-serif;overflow-x:hidden}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg-800)}::-webkit-scrollbar-thumb{background:var(--green-700);border-radius:2px}
+
+/* ==================== LANDING PAGE ==================== */
+#landing{position:relative;height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#map-bg{position:absolute;inset:0;z-index:0}
+.hero-overlay{position:absolute;inset:0;background:linear-gradient(135deg,rgba(5,14,10,0.85) 0%,rgba(5,14,10,0.6) 50%,rgba(5,14,10,0.85) 100%);z-index:1}
+.scan-line{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(34,197,94,0.015) 2px,rgba(34,197,94,0.015) 4px);z-index:2;pointer-events:none}
+.grid-overlay{position:absolute;inset:0;background-image:linear-gradient(rgba(34,197,94,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(34,197,94,0.04) 1px,transparent 1px);background-size:40px 40px;z-index:2;pointer-events:none}
+.hero-content{position:relative;z-index:10;text-align:center;max-width:900px;padding:2rem;animation:fadeUp 1s ease forwards}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:20px;padding:6px 16px;font-size:12px;color:var(--green-300);letter-spacing:.08em;text-transform:uppercase;margin-bottom:1.5rem;animation:pulse-border 2s ease infinite}
+.pulse-dot{width:6px;height:6px;background:var(--green-400);border-radius:50%;animation:blink 1.2s ease infinite}
+.hero-title{font-family:'Space Grotesk',sans-serif;font-size:clamp(2rem,5vw,4rem);font-weight:700;line-height:1.1;margin-bottom:1rem}
+.hero-title .line1{color:var(--text-primary)}
+.hero-title .accent{background:linear-gradient(90deg,var(--green-400),var(--blue-400));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-subtitle{font-size:clamp(1rem,2vw,1.2rem);color:var(--text-secondary);max-width:600px;margin:0 auto 2.5rem;line-height:1.7}
+.hero-stats{display:flex;justify-content:center;gap:3rem;margin-bottom:2.5rem;flex-wrap:wrap}
+.hero-stat{text-align:center}.hero-stat .val{font-size:2rem;font-weight:700;color:var(--green-400);font-family:'Space Grotesk',sans-serif}
+.hero-stat .lbl{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.1em;margin-top:2px}
+.hero-btns{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+.btn-primary{background:linear-gradient(135deg,var(--green-700),var(--green-500));color:#fff;border:none;padding:14px 32px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:all .3s;letter-spacing:.03em;box-shadow:0 0 30px rgba(34,197,94,0.2)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 50px rgba(34,197,94,0.35)}
+.btn-secondary{background:transparent;color:var(--blue-300);border:1px solid rgba(56,189,248,0.3);padding:14px 32px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;transition:all .3s;letter-spacing:.03em}
+.btn-secondary:hover{background:rgba(56,189,248,0.08);border-color:rgba(56,189,248,0.6)}
+.scroll-hint{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);z-index:10;display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--text-dim);font-size:12px}
+.chevron{width:20px;height:20px;border-right:2px solid var(--text-dim);border-bottom:2px solid var(--text-dim);transform:rotate(45deg);animation:bounce 1.5s ease infinite}
+
+/* ==================== DASHBOARD LAYOUT ==================== */
+#dashboard{display:none;height:100vh;flex-direction:column}
+.topbar{height:52px;background:var(--glass-bright);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 1.25rem;backdrop-filter:blur(20px);z-index:100;flex-shrink:0}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.logo{display:flex;align-items:center;gap:8px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--green-300)}
+.logo-icon{width:28px;height:28px;background:linear-gradient(135deg,var(--green-700),var(--green-500));border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.live-badge{display:flex;align-items:center;gap:5px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:4px 10px;font-size:11px;color:var(--green-300)}
+.sys-time{font-size:12px;color:var(--text-secondary);font-family:'Space Grotesk',sans-serif}
+.btn-back{background:transparent;border:1px solid var(--border-bright);color:var(--text-secondary);padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;transition:all .2s}
+.btn-back:hover{background:var(--bg-600);color:var(--text-primary)}
+
+.dash-body{display:flex;flex:1;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:200px;background:var(--glass-bright);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;backdrop-filter:blur(20px)}
+.sidebar-section{padding:.75rem 0}
+.sidebar-label{font-size:9px;color:var(--text-dim);letter-spacing:.12em;text-transform:uppercase;padding:4px 1rem 6px;font-weight:600}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 1rem;cursor:pointer;transition:all .2s;font-size:12.5px;color:var(--text-secondary);border-left:2px solid transparent}
+.nav-item:hover{background:rgba(34,197,94,0.06);color:var(--text-primary)}
+.nav-item.active{background:rgba(34,197,94,0.1);color:var(--green-300);border-left-color:var(--green-400)}
+.nav-icon{font-size:14px;width:16px;text-align:center}
+.nav-divider{height:1px;background:var(--border);margin:.5rem 1rem}
+.layer-toggle{display:flex;align-items:center;justify-content:space-between;padding:6px 1rem;font-size:11.5px;color:var(--text-secondary)}
+.layer-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.toggle-switch{width:28px;height:16px;border-radius:8px;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
+.toggle-switch.on{background:var(--green-500)}
+.toggle-switch.off{background:var(--bg-600)}
+.toggle-knob{position:absolute;width:12px;height:12px;background:#fff;border-radius:50%;top:2px;transition:left .2s}
+.toggle-switch.on .toggle-knob{left:14px}
+.toggle-switch.off .toggle-knob{left:2px}
+
+/* MAIN AREA */
+.main-area{flex:1;display:flex;overflow:hidden}
+.map-panel{flex:1;position:relative}
+#main-map{height:100%;width:100%}
+.map-overlay-top{position:absolute;top:12px;left:12px;z-index:500;display:flex;flex-direction:column;gap:8px}
+.map-chip{background:var(--glass-bright);border:1px solid var(--border-bright);border-radius:8px;padding:6px 10px;font-size:11px;color:var(--text-secondary);backdrop-filter:blur(12px)}
+.map-chip strong{color:var(--green-300);font-size:12px}
+.coord-chip{font-size:10px;font-family:'Space Grotesk',monospace}
+
+/* ANALYTICS PANEL */
+.analytics{width:280px;background:var(--glass);border-left:1px solid var(--border);overflow-y:auto;flex-shrink:0;padding:.75rem;display:flex;flex-direction:column;gap:.75rem;backdrop-filter:blur(20px)}
+.panel-title{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.1em;font-weight:600;display:flex;align-items:center;gap:6px}
+.panel-title::before{content:'';display:block;width:3px;height:12px;background:var(--green-500);border-radius:2px}
+
+/* KPI Cards */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.kpi-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;padding:10px;position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kpi-color,var(--green-500))}
+.kpi-val{font-size:1.4rem;font-weight:700;font-family:'Space Grotesk',sans-serif;color:var(--kpi-color,var(--green-400))}
+.kpi-lbl{font-size:10px;color:var(--text-dim);margin-top:2px;text-transform:uppercase;letter-spacing:.05em}
+.kpi-change{font-size:10px;color:var(--green-400);margin-top:4px}
+
+/* Charts */
+.chart-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:8px;padding:.75rem}
+.chart-title{font-size:11px;color:var(--text-secondary);margin-bottom:.5rem;font-weight:500}
+.chart-wrap{position:relative;height:120px}
+.chart-wrap-tall{position:relative;height:150px}
+
+/* Circular progress */
+.circ-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.circ-item{display:flex;flex-direction:column;align-items:center;gap:4px}
+.circ-svg{transform:rotate(-90deg)}
+.circ-track{fill:none;stroke:var(--bg-600)}
+.circ-fill{fill:none;stroke-linecap:round;transition:stroke-dashoffset 1.5s cubic-bezier(.4,0,.2,1)}
+.circ-label{font-size:9px;color:var(--text-dim);text-align:center;line-height:1.3}
+.circ-val{font-size:11px;font-weight:600;font-family:'Space Grotesk',sans-serif}
+
+/* Sensor table */
+.sensor-table{width:100%;border-collapse:collapse;font-size:11px}
+.sensor-table th{color:var(--text-dim);font-weight:500;text-align:left;padding:4px 6px;text-transform:uppercase;font-size:9px;letter-spacing:.05em;border-bottom:1px solid var(--border)}
+.sensor-table td{padding:5px 6px;border-bottom:1px solid rgba(26,48,37,0.5);color:var(--text-secondary)}
+.sensor-table tr:hover td{background:rgba(34,197,94,0.04)}
+.status-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.moisture-bar{height:4px;background:var(--bg-600);border-radius:2px;width:60px;overflow:hidden}
+.moisture-fill{height:100%;border-radius:2px;transition:width .8s ease}
+
+/* Valve status */
+.valve-grid{display:flex;flex-direction:column;gap:5px}
+.valve-row{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:6px}
+.valve-info{display:flex;flex-direction:column;gap:1px}
+.valve-name{font-size:11.5px;color:var(--text-primary);font-weight:500}
+.valve-field{font-size:10px;color:var(--text-dim)}
+.valve-status{font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px}
+.valve-on{background:rgba(34,197,94,0.15);color:var(--green-300)}
+.valve-off{background:rgba(239,68,68,0.15);color:#f87171}
+
+/* Control Panel */
+.ctrl-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ctrl-btn{background:var(--card-bg);border:1px solid var(--card-border);border-radius:7px;padding:8px;cursor:pointer;transition:all .2s;text-align:center;color:var(--text-secondary);font-size:11px}
+.ctrl-btn:hover{background:rgba(34,197,94,0.1);border-color:var(--green-500);color:var(--green-300)}
+.ctrl-btn-icon{font-size:18px;display:block;margin-bottom:3px}
+.slider-group{display:flex;flex-direction:column;gap:6px}
+.slider-row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-secondary)}
+.slider-row input[type=range]{flex:1;accent-color:var(--green-500);height:4px}
+.slider-row .sval{min-width:30px;text-align:right;color:var(--green-300);font-weight:600;font-family:'Space Grotesk',sans-serif;font-size:11px}
+
+/* LEGEND */
+.legend-box{background:var(--glass-bright);border:1px solid var(--border);border-radius:8px;padding:.6rem .8rem}
+.legend-item{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--text-secondary);padding:2px 0}
+.legend-swatch{width:14px;height:10px;border-radius:2px;flex-shrink:0}
+.legend-line{width:20px;height:3px;border-radius:2px;flex-shrink:0}
+
+/* TECH SECTION */
+#tech-section{background:var(--bg-800);padding:4rem 2rem;border-top:1px solid var(--border)}
+.tech-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;max-width:1200px;margin:0 auto}
+.tech-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:1.25rem;text-align:center;transition:all .3s;cursor:default}
+.tech-card:hover{transform:translateY(-4px);border-color:rgba(34,197,94,0.35);box-shadow:0 0 20px rgba(34,197,94,0.08)}
+.tech-icon{font-size:2rem;margin-bottom:.75rem}
+.tech-name{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:.25rem;font-family:'Space Grotesk',sans-serif}
+.tech-desc{font-size:11px;color:var(--text-dim);line-height:1.5}
+.section-hdr{text-align:center;margin-bottom:2rem}
+.section-hdr h2{font-family:'Space Grotesk',sans-serif;font-size:1.75rem;font-weight:700;color:var(--text-primary);margin-bottom:.5rem}
+.section-hdr p{color:var(--text-secondary);font-size:14px}
+
+/* FOOTER */
+#footer{background:var(--bg-900);border-top:1px solid var(--border);padding:2.5rem 2rem}
+.footer-inner{max-width:1000px;margin:0 auto}
+.footer-top{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:2rem;margin-bottom:1.5rem}
+.footer-brand h3{font-family:'Space Grotesk',sans-serif;font-size:1.1rem;color:var(--green-300);margin-bottom:.5rem}
+.footer-brand p{font-size:12px;color:var(--text-dim);line-height:1.6}
+.footer-col h4{font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;font-weight:600}
+.footer-col ul{list-style:none}
+.footer-col li{font-size:12px;color:var(--text-dim);padding:2px 0;line-height:1.6}
+.footer-bottom{border-top:1px solid var(--border);padding-top:1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:gap}
+.footer-bottom p{font-size:11px;color:var(--text-dim)}
+
+/* POPUP STYLES */
+.leaflet-popup-content-wrapper{background:var(--glass-bright) !important;border:1px solid var(--border-bright) !important;border-radius:10px !important;backdrop-filter:blur(20px);box-shadow:0 0 30px rgba(0,0,0,0.5) !important;color:var(--text-primary) !important}
+.leaflet-popup-tip-container{display:none}
+.popup-inner{padding:4px}
+.popup-title{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;color:var(--green-300);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.popup-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11.5px}
+.popup-key{color:var(--text-dim)}
+.popup-val{color:var(--text-primary);font-weight:500;font-family:'Space Grotesk',sans-serif}
+.popup-badge{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+.pb-on{background:rgba(34,197,94,0.15);color:var(--green-300)}
+.pb-off{background:rgba(239,68,68,0.15);color:#f87171}
+.pb-dry{background:rgba(245,158,11,0.15);color:#fbbf24}
+
+/* ANIMATIONS */
+@keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+@keyframes bounce{0%,100%{transform:rotate(45deg) translateY(0)}50%{transform:rotate(45deg) translateY(6px)}}
+@keyframes pulse-border{0%,100%{border-color:rgba(34,197,94,0.25)}50%{border-color:rgba(34,197,94,0.5)}}
+@keyframes flow{0%{stroke-dashoffset:40}100%{stroke-dashoffset:0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes counter{from{opacity:0;transform:scale(0.8)}to{opacity:1;transform:scale(1)}}
+
+/* RESPONSIVE */
+@media(max-width:900px){.analytics{display:none}.footer-top{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.sidebar{display:none}.hero-stats{gap:1.5rem}}
+
+/* Leaflet dark overrides */
+.leaflet-container{background:#050e0a !important;font-family:'Inter',sans-serif}
+.leaflet-control-zoom a{background:var(--glass-bright) !important;color:var(--text-primary) !important;border-color:var(--border-bright) !important}
+.leaflet-control-attribution{background:rgba(5,14,10,0.7) !important;color:var(--text-dim) !important;font-size:9px !important}
+</style>
+</head>
+<body>
+
+<!-- ==================== LANDING PAGE ==================== -->
+<section id="landing">
+  <div id="map-bg"></div>
+  <div class="hero-overlay"></div>
+  <div class="scan-line"></div>
+  <div class="grid-overlay"></div>
+
+  <div class="hero-content">
+    <div class="hero-badge"><span class="pulse-dot"></span>Active Monitoring System — Agricultural Zone Delta</div>
+    <h1 class="hero-title">
+      <span class="line1">GIS Smart Irrigation</span><br/>
+      <span class="accent">Decision Support System</span>
+    </h1>
+    <p class="hero-subtitle">A geospatial intelligence platform for precision water management in proposed agricultural villages. Real-time soil sensors, valve automation, and AI-driven irrigation scheduling.</p>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="val" data-target="847">0</div><div class="lbl">Hectares Monitored</div></div>
+      <div class="hero-stat"><div class="val" data-target="32">0</div><div class="lbl">Active Sensors</div></div>
+      <div class="hero-stat"><div class="val" data-target="23">0</div><div class="lbl">Irrigation Fields</div></div>
+      <div class="hero-stat"><div class="val" data-target="62" data-suffix="%">0</div><div class="lbl">Water Saved</div></div>
+    </div>
+    <div class="hero-btns">
+      <button class="btn-primary" onclick="openDashboard()">⬡ Open Dashboard</button>
+      <button class="btn-secondary" onclick="openDashboard()">◉ Explore Map</button>
+    </div>
+  </div>
+  <div class="scroll-hint">
+    <span>Scroll to explore</span>
+    <div class="chevron"></div>
+  </div>
+</section>
+
+<!-- TECH SECTION (below landing) -->
+<section id="tech-section">
+  <div class="section-hdr">
+    <h2>Technology Stack</h2>
+    <p>Built with professional GIS and agricultural intelligence technologies</p>
+  </div>
+  <div class="tech-grid">
+    <div class="tech-card"><div class="tech-icon">🗺️</div><div class="tech-name">Leaflet.js / ArcGIS</div><div class="tech-desc">Interactive webmaps with custom GIS layer management and spatial analysis</div></div>
+    <div class="tech-card"><div class="tech-icon">🌐</div><div class="tech-name">ArcGIS Online</div><div class="tech-desc">Cloud-based GIS platform for hosting and publishing agricultural map services</div></div>
+    <div class="tech-card"><div class="tech-icon">🛰️</div><div class="tech-name">Remote Sensing</div><div class="tech-desc">Satellite NDVI imagery for vegetation health monitoring and crop stress detection</div></div>
+    <div class="tech-card"><div class="tech-icon">💧</div><div class="tech-name">Smart Irrigation</div><div class="tech-desc">IoT-integrated valve control with soil moisture threshold automation</div></div>
+    <div class="tech-card"><div class="tech-icon">📊</div><div class="tech-name">Dashboard Analytics</div><div class="tech-desc">Real-time data visualization with Chart.js statistical reporting</div></div>
+    <div class="tech-card"><div class="tech-icon">🔬</div><div class="tech-name">GIS Spatial Analysis</div><div class="tech-desc">Soil classification, terrain modelling, and irrigation network routing</div></div>
+    <div class="tech-card"><div class="tech-icon">⚛️</div><div class="tech-name">Next.js / React</div><div class="tech-desc">Modern frontend architecture with TypeScript and component-driven design</div></div>
+    <div class="tech-card"><div class="tech-icon">🖥️</div><div class="tech-name">ArcGIS Pro</div><div class="tech-desc">Desktop GIS for field delineation, topology editing, and map cartography</div></div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer id="footer">
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <h3>GIS Smart Irrigation DSS</h3>
+        <p>A graduation project simulating precision water management for agricultural villages using geospatial intelligence, IoT sensor networks, and automated valve control systems.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Project</h4>
+        <ul>
+          <li>Graduation Project</li><li>Faculty of Engineering</li><li>GIS Department</li><li>Batch 2024–2025</li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Team Members</h4>
+        <ul>
+          <li>Ahmed Hassan</li><li>Fatima Al-Rashid</li><li>Omar Khalil</li><li>Sara Ibrahim</li><li>Mohamed Youssef</li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Supervised By</h4>
+        <ul>
+          <li>Dr. Khaled Mansour</li><li>Prof. of GIS & RS</li><li>Faculty of Engineering</li><li style="margin-top:8px;color:#3d6b52">Academic Year 2024/25</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2025 GIS Smart Irrigation DSS — Faculty of Engineering, GIS Department. Graduation Project.</p>
+      <p style="color:#3d6b52">Simulated platform — not real IoT deployment</p>
+    </div>
+  </div>
+</footer>
+
+<!-- ==================== DASHBOARD ==================== -->
+<div id="dashboard">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo"><div class="logo-icon">💧</div>GIS Irrigation DSS</div>
+      <div style="width:1px;height:20px;background:var(--border)"></div>
+      <span style="font-size:11px;color:var(--text-dim)">Agricultural Village — Zone Delta</span>
+    </div>
+    <div class="topbar-right">
+      <div class="live-badge"><span class="pulse-dot"></span>LIVE</div>
+      <div class="sys-time" id="sys-clock">--:--:--</div>
+      <button class="btn-back" onclick="closeDashboard()">← Back to Home</button>
+    </div>
+  </div>
+
+  <div class="dash-body">
+    <!-- SIDEBAR -->
+    <nav class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Navigation</div>
+        <div class="nav-item active" onclick="setNav(this,'overview')"><span class="nav-icon">⬡</span>Overview</div>
+        <div class="nav-item" onclick="setNav(this,'map')"><span class="nav-icon">🗺</span>Field Map</div>
+        <div class="nav-item" onclick="setNav(this,'sensors')"><span class="nav-icon">📡</span>Sensors</div>
+        <div class="nav-item" onclick="setNav(this,'valves')"><span class="nav-icon">💧</span>Valves</div>
+        <div class="nav-item" onclick="setNav(this,'analytics')"><span class="nav-icon">📊</span>Analytics</div>
+      </div>
+      <div class="nav-divider"></div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Map Layers</div>
+        <div class="layer-toggle">
+          <span style="display:flex;align-items:center;gap:6px;font-size:11.5px"><span class="layer-dot" style="background:#22c55e"></span>Fields</span>
+          <div class="toggle-switch on" id="tgl-fields" onclick="toggleLayer('fields',this)"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="layer-toggle">
+          <span style="display:flex;align-items:center;gap:6px;font-size:11.5px"><span class="layer-dot" style="background:#38bdf8"></span>Irrigation Net</span>
+          <div class="toggle-switch on" id="tgl-irrnet" onclick="toggleLayer('irrnet',this)"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="layer-toggle">
+          <span style="display:flex;align-items:center;gap:6px;font-size:11.5px"><span class="layer-dot" style="background:#a855f7"></span>Sensors</span>
+          <div class="toggle-switch on" id="tgl-sensors" onclick="toggleLayer('sensors',this)"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="layer-toggle">
+          <span style="display:flex;align-items:center;gap:6px;font-size:11.5px"><span class="layer-dot" style="background:#f59e0b"></span>Factories</span>
+          <div class="toggle-switch on" id="tgl-factories" onclick="toggleLayer('factories',this)"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="layer-toggle">
+          <span style="display:flex;align-items:center;gap:6px;font-size:11.5px"><span class="layer-dot" style="background:#fb923c"></span>Valves</span>
+          <div class="toggle-switch on" id="tgl-valves" onclick="toggleLayer('valves',this)"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="layer-toggle">
+          <span style="display:flex;align-items:center;gap:6px;font-size:11.5px"><span class="layer-dot" style="background:#8b5cf6"></span>Soil Zones</span>
+          <div class="toggle-switch off" id="tgl-soil" onclick="toggleLayer('soil',this)"><div class="toggle-knob"></div></div>
+        </div>
+      </div>
+      <div class="nav-divider"></div>
+      <div class="sidebar-section" style="padding-bottom:1rem">
+        <div class="sidebar-label">Base Map</div>
+        <div class="nav-item" onclick="setBaseMap('dark')" id="bm-dark" style="color:var(--green-300)"><span class="nav-icon">🌑</span>Dark Terrain</div>
+        <div class="nav-item" onclick="setBaseMap('satellite')" id="bm-satellite"><span class="nav-icon">🛰</span>Satellite</div>
+        <div class="nav-item" onclick="setBaseMap('topo')" id="bm-topo"><span class="nav-icon">🗻</span>Topographic</div>
+      </div>
+    </nav>
+
+    <!-- MAIN MAP AREA -->
+    <div class="map-panel">
+      <div id="main-map"></div>
+      <div class="map-overlay-top">
+        <div class="map-chip"><strong id="coord-lat">30.0444°N</strong> <span class="coord-chip" id="coord-lng">31.2357°E</span></div>
+        <div class="map-chip">Zoom: <strong id="zoom-level">14</strong> | Fields: <strong>23</strong></div>
+        <div class="map-chip">Updated: <strong id="upd-time">--:--</strong></div>
+      </div>
+    </div>
+
+    <!-- ANALYTICS PANEL -->
+    <div class="analytics">
+
+      <!-- KPI Grid -->
+      <div class="panel-title">System Overview</div>
+      <div class="kpi-grid">
+        <div class="kpi-card" style="--kpi-color:#22c55e"><div class="kpi-val" id="kpi-watersaved">62%</div><div class="kpi-lbl">Water Saved</div><div class="kpi-change">↑ 4% vs last week</div></div>
+        <div class="kpi-card" style="--kpi-color:#38bdf8"><div class="kpi-val" id="kpi-sensors">32</div><div class="kpi-lbl">Active Sensors</div><div class="kpi-change">↑ All online</div></div>
+        <div class="kpi-card" style="--kpi-color:#4ade80"><div class="kpi-val" id="kpi-irrigated">14</div><div class="kpi-lbl">Irrigated</div><div class="kpi-change">Fields active</div></div>
+        <div class="kpi-card" style="--kpi-color:#f59e0b"><div class="kpi-val" id="kpi-dry">9</div><div class="kpi-lbl">Dry Fields</div><div class="kpi-change">Need water</div></div>
+      </div>
+
+      <!-- Water Consumption Chart -->
+      <div class="chart-card">
+        <div class="chart-title">💧 Water Consumption (m³/day)</div>
+        <div class="chart-wrap"><canvas id="chart-water" role="img" aria-label="Daily water consumption over 7 days">Water consumption chart</canvas></div>
+      </div>
+
+      <!-- Field Status Donut -->
+      <div class="chart-card">
+        <div class="chart-title">📊 Field Status Distribution</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="position:relative;height:90px;width:90px;flex-shrink:0"><canvas id="chart-donut" role="img" aria-label="Field status distribution pie chart">Field status</canvas></div>
+          <div style="display:flex;flex-direction:column;gap:5px;font-size:10px">
+            <div style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:#22c55e;display:inline-block"></span><span style="color:var(--text-secondary)">Optimal (8)</span></div>
+            <div style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:#38bdf8;display:inline-block"></span><span style="color:var(--text-secondary)">Irrigating (6)</span></div>
+            <div style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:#f59e0b;display:inline-block"></span><span style="color:var(--text-secondary)">Dry (6)</span></div>
+            <div style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:#ef4444;display:inline-block"></span><span style="color:var(--text-secondary)">Critical (3)</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Circular progress bars -->
+      <div class="panel-title">Resource Metrics</div>
+      <div class="circ-grid">
+        <div class="circ-item">
+          <svg class="circ-svg" width="60" height="60" viewBox="0 0 60 60">
+            <circle class="circ-track" cx="30" cy="30" r="24" stroke-width="5"/>
+            <circle class="circ-fill" cx="30" cy="30" r="24" stroke="#22c55e" stroke-width="5" stroke-dasharray="150.8" stroke-dashoffset="57" id="c-moisture"/>
+          </svg>
+          <span class="circ-val" style="color:#22c55e">62%</span>
+          <span class="circ-label">Avg Moisture</span>
+        </div>
+        <div class="circ-item">
+          <svg class="circ-svg" width="60" height="60" viewBox="0 0 60 60">
+            <circle class="circ-track" cx="30" cy="30" r="24" stroke-width="5"/>
+            <circle class="circ-fill" cx="30" cy="30" r="24" stroke="#38bdf8" stroke-width="5" stroke-dasharray="150.8" stroke-dashoffset="45" id="c-efficiency"/>
+          </svg>
+          <span class="circ-val" style="color:#38bdf8">70%</span>
+          <span class="circ-label">Efficiency</span>
+        </div>
+        <div class="circ-item">
+          <svg class="circ-svg" width="60" height="60" viewBox="0 0 60 60">
+            <circle class="circ-track" cx="30" cy="30" r="24" stroke-width="5"/>
+            <circle class="circ-fill" cx="30" cy="30" r="24" stroke="#a855f7" stroke-width="5" stroke-dasharray="150.8" stroke-dashoffset="100" id="c-battery"/>
+          </svg>
+          <span class="circ-val" style="color:#a855f7">34%</span>
+          <span class="circ-label">Valve ON</span>
+        </div>
+      </div>
+
+      <!-- Sensor Table -->
+      <div class="panel-title">Live Sensor Readings</div>
+      <div class="chart-card" style="padding:.5rem">
+        <table class="sensor-table">
+          <thead><tr><th>ID</th><th>Field</th><th>Moisture</th><th>Valve</th></tr></thead>
+          <tbody id="sensor-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Valve Status -->
+      <div class="panel-title">Valve Status</div>
+      <div class="valve-grid" id="valve-list"></div>
+
+      <!-- Control Panel -->
+      <div class="panel-title">Simulation Controls</div>
+      <div class="chart-card">
+        <div class="ctrl-grid" style="margin-bottom:8px">
+          <button class="ctrl-btn" onclick="runSimulation()"><span class="ctrl-btn-icon">▶</span>Run Sim</button>
+          <button class="ctrl-btn" onclick="refreshAll()"><span class="ctrl-btn-icon">↺</span>Refresh</button>
+          <button class="ctrl-btn" onclick="allValvesOn()"><span class="ctrl-btn-icon">💧</span>All ON</button>
+          <button class="ctrl-btn" onclick="allValvesOff()"><span class="ctrl-btn-icon">🔴</span>All OFF</button>
+        </div>
+        <div class="slider-group">
+          <div class="slider-row">
+            <span style="width:70px;flex-shrink:0">Dry threshold</span>
+            <input type="range" min="10" max="40" value="25" id="sl-dry" oninput="updateThreshold('dry',this.value)"/>
+            <span class="sval" id="sv-dry">25%</span>
+          </div>
+          <div class="slider-row">
+            <span style="width:70px;flex-shrink:0">Wet threshold</span>
+            <input type="range" min="60" max="95" value="80" id="sl-wet" oninput="updateThreshold('wet',this.value)"/>
+            <span class="sval" id="sv-wet">80%</span>
+          </div>
+          <div class="slider-row">
+            <span style="width:70px;flex-shrink:0">Sim Speed</span>
+            <input type="range" min="1" max="5" value="2" id="sl-speed" oninput="document.getElementById('sv-speed').textContent=this.value+'x'"/>
+            <span class="sval" id="sv-speed">2x</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="panel-title">Map Legend</div>
+      <div class="legend-box">
+        <div class="legend-item"><div class="legend-swatch" style="background:rgba(56,189,248,0.5);border:1px solid #38bdf8"></div>Irrigating (moisture &lt;25%)</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:rgba(34,197,94,0.4);border:1px solid #22c55e"></div>Optimal moisture</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:rgba(161,105,50,0.5);border:1px solid #92400e"></div>Over-watered (&gt;80%)</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:rgba(239,68,68,0.3);border:1px solid #ef4444"></div>Critical dry</div>
+        <div class="legend-item"><div class="legend-line" style="background:#38bdf8"></div>Irrigation network</div>
+        <div class="legend-item"><span style="font-size:14px">📡</span>Soil moisture sensor</div>
+        <div class="legend-item"><span style="font-size:14px">🔵</span>Irrigation valve</div>
+        <div class="legend-item"><span style="font-size:14px">🏭</span>Agri-factory</div>
+      </div>
+
+      <!-- Moisture trend -->
+      <div class="chart-card">
+        <div class="chart-title">📈 Moisture Trend (24h)</div>
+        <div class="chart-wrap-tall"><canvas id="chart-trend" role="img" aria-label="24-hour moisture trend line chart">Moisture trend</canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== DATA ====================
+const FIELDS = [
+  {id:'F01',name:'Wheat Block A',coords:[[30.058,31.228],[30.062,31.228],[30.062,31.234],[30.058,31.234]],moisture:18,crop:'Wheat',area:'42 ha'},
+  {id:'F02',name:'Corn Block B',coords:[[30.054,31.234],[30.058,31.234],[30.058,31.241],[30.054,31.241]],moisture:72,crop:'Corn',area:'38 ha'},
+  {id:'F03',name:'Tomato C',coords:[[30.062,31.234],[30.066,31.234],[30.066,31.241],[30.062,31.241]],moisture:22,crop:'Tomatoes',area:'28 ha'},
+  {id:'F04',name:'Cotton D',coords:[[30.050,31.228],[30.054,31.228],[30.054,31.234],[30.050,31.234]],moisture:85,crop:'Cotton',area:'55 ha'},
+  {id:'F05',name:'Sunflower E',coords:[[30.046,31.234],[30.050,31.234],[30.050,31.241],[30.046,31.241]],moisture:45,crop:'Sunflower',area:'33 ha'},
+  {id:'F06',name:'Barley F',coords:[[30.066,31.228],[30.070,31.228],[30.070,31.234],[30.066,31.234]],moisture:15,crop:'Barley',area:'47 ha'},
+  {id:'F07',name:'Soy Block G',coords:[[30.054,31.220],[30.058,31.220],[30.058,31.228],[30.054,31.228]],moisture:60,crop:'Soybeans',area:'36 ha'},
+  {id:'F08',name:'Rice Paddy H',coords:[[30.058,31.220],[30.062,31.220],[30.062,31.228],[30.058,31.228]],moisture:88,crop:'Rice',area:'40 ha'},
+  {id:'F09',name:'Veggie Plot I',coords:[[30.062,31.220],[30.066,31.220],[30.066,31.228],[30.062,31.228]],moisture:35,crop:'Mixed Veg',area:'22 ha'},
+  {id:'F10',name:'Alfalfa J',coords:[[30.046,31.220],[30.050,31.220],[30.050,31.228],[30.046,31.228]],moisture:10,crop:'Alfalfa',area:'29 ha'},
+  {id:'F11',name:'Pepper K',coords:[[30.050,31.241],[30.054,31.241],[30.054,31.248],[30.050,31.248]],moisture:55,crop:'Bell Pepper',area:'18 ha'},
+  {id:'F12',name:'Onion L',coords:[[30.054,31.241],[30.058,31.241],[30.058,31.248],[30.054,31.248]],moisture:90,crop:'Onion',area:'24 ha'},
+];
+
+const SENSORS = [
+  {id:'S001',lat:30.060,lng:31.231,fieldId:'F01',moisture:18,battery:82,temp:28.5},
+  {id:'S002',lat:30.056,lng:31.237,fieldId:'F02',moisture:72,battery:91,temp:25.1},
+  {id:'S003',lat:30.064,lng:31.237,fieldId:'F03',moisture:22,battery:76,temp:30.2},
+  {id:'S004',lat:30.052,lng:31.231,fieldId:'F04',moisture:85,battery:65,temp:26.8},
+  {id:'S005',lat:30.048,lng:31.237,fieldId:'F05',moisture:45,battery:88,temp:27.3},
+  {id:'S006',lat:30.068,lng:31.231,fieldId:'F06',moisture:15,battery:93,temp:31.0},
+  {id:'S007',lat:30.056,lng:31.224,fieldId:'F07',moisture:60,battery:71,temp:24.9},
+  {id:'S008',lat:30.060,lng:31.224,fieldId:'F08',moisture:88,battery:55,temp:28.1},
+  {id:'S009',lat:30.064,lng:31.224,fieldId:'F09',moisture:35,battery:84,temp:29.4},
+  {id:'S010',lat:30.048,lng:31.224,fieldId:'F10',moisture:10,battery:97,temp:32.5},
+];
+
+const VALVES = [
+  {id:'V01',lat:30.058,lng:31.230,fieldId:'F01',name:'Main Inlet A'},
+  {id:'V02',lat:30.054,lng:31.236,fieldId:'F02',name:'Main Inlet B'},
+  {id:'V03',lat:30.062,lng:31.236,fieldId:'F03',name:'Inlet C'},
+  {id:'V04',lat:30.050,lng:31.230,fieldId:'F04',name:'Inlet D'},
+  {id:'V05',lat:30.046,lng:31.236,fieldId:'F05',name:'Inlet E'},
+  {id:'V06',lat:30.066,lng:31.230,fieldId:'F06',name:'Inlet F'},
+];
+
+const FACTORIES = [
+  {id:'FC1',lat:30.044,lng:31.245,name:'Al-Nile Packing Plant',cost:'$4.2/ton',time:'22 min',dist:'8.5 km',type:'Food Processing'},
+  {id:'FC2',lat:30.074,lng:31.218,name:'Delta Grain Mill',cost:'$2.8/ton',time:'35 min',dist:'14.2 km',type:'Grain Mill'},
+  {id:'FC3',lat:30.070,lng:31.250,name:'Fresh Valley Cold Store',cost:'$5.1/ton',time:'18 min',dist:'6.3 km',type:'Cold Storage'},
+];
+
+const SOIL_ZONES = [
+  {coords:[[30.046,31.220],[30.066,31.220],[30.066,31.230],[30.046,31.230]],type:'Sandy Loam',ph:6.8,salinity:'0.4 dS/m',nitrogen:'Medium',color:'rgba(139,92,246,0.15)'},
+  {coords:[[30.046,31.230],[30.066,31.230],[30.066,31.248],[30.046,31.248]],type:'Clay Loam',ph:7.2,salinity:'0.8 dS/m',nitrogen:'High',color:'rgba(168,85,247,0.12)'},
+];
+
+const IRR_NETWORK = [
+  [[30.060,31.215],[30.060,31.220],[30.058,31.224],[30.056,31.228],[30.056,31.234],[30.056,31.241]],
+  [[30.060,31.215],[30.062,31.220],[30.064,31.224],[30.064,31.228],[30.066,31.234]],
+  [[30.060,31.215],[30.058,31.220],[30.052,31.224],[30.050,31.228],[30.048,31.234]],
+];
+
+// ==================== STATE ====================
+let map, fieldLayers=[], sensorMarkers=[], valveMarkers=[], factoryMarkers=[], soilLayers=[], netLayers=[];
+let DRY_THRESHOLD=25, WET_THRESHOLD=80;
+let fieldData=[...FIELDS.map(f=>({...f}))];
+let layerState={fields:true,irrnet:true,sensors:true,factories:true,valves:true,soil:false};
+let charts={};
+let simInterval=null;
+
+// ==================== FIELD COLOR LOGIC ====================
+function getFieldColor(moisture){
+  if(moisture<DRY_THRESHOLD) return {fill:'rgba(56,189,248,0.45)',stroke:'#38bdf8',status:'Irrigating'};
+  if(moisture>WET_THRESHOLD) return {fill:'rgba(120,80,30,0.45)',stroke:'#92400e',status:'Over-watered'};
+  if(moisture<40) return {fill:'rgba(239,68,68,0.25)',stroke:'#ef4444',status:'Dry'};
+  return {fill:'rgba(34,197,94,0.35)',stroke:'#22c55e',status:'Optimal'};
+}
+
+function getValveStatus(moisture){return moisture<DRY_THRESHOLD?'ON':'OFF';}
+
+// ==================== MAP INIT ====================
+function initMap(){
+  map=L.map('main-map',{center:[30.058,31.232],zoom:14,zoomControl:false,preferCanvas:true});
+  L.control.zoom({position:'bottomright'}).addTo(map);
+  setBaseMap('dark');
+
+  map.on('mousemove',e=>{
+    document.getElementById('coord-lat').textContent=e.latlng.lat.toFixed(4)+'°N';
+    document.getElementById('coord-lng').textContent=e.latlng.lng.toFixed(4)+'°E';
+  });
+  map.on('zoomend',()=>{document.getElementById('zoom-level').textContent=map.getZoom();});
+
+  renderAllLayers();
+  updateUI();
+}
+
+let baseTile=null;
+const TILES={
+  dark:'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  satellite:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  topo:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png'
+};
+function setBaseMap(type){
+  if(baseTile) map.removeLayer(baseTile);
+  baseTile=L.tileLayer(TILES[type],{attribution:'© CartoDB/ESRI',maxZoom:19}).addTo(map);
+  ['dark','satellite','topo'].forEach(t=>{
+    const el=document.getElementById('bm-'+t);
+    if(el) el.style.color=t===type?'var(--green-300)':'';
+  });
+}
+
+// ==================== RENDER LAYERS ====================
+function clearLayer(arr){arr.forEach(l=>{try{map.removeLayer(l);}catch(e){}});arr.length=0;}
+
+function renderFields(){
+  clearLayer(fieldLayers);
+  if(!layerState.fields) return;
+  fieldData.forEach(f=>{
+    const c=getFieldColor(f.moisture);
+    const valve=getValveStatus(f.moisture);
+    const poly=L.polygon(f.coords,{
+      fillColor:c.fill,fillOpacity:1,color:c.stroke,weight:valve==='ON'?2:1.5,
+      dashArray:valve==='ON'?'6 3':null
+    }).addTo(map);
+    const center=poly.getBounds().getCenter();
+    const popup=L.popup({maxWidth:220,className:'gis-popup'}).setContent(`
+      <div class="popup-inner">
+        <div class="popup-title">📐 ${f.name}</div>
+        <div class="popup-row"><span class="popup-key">Field ID</span><span class="popup-val">${f.id}</span></div>
+        <div class="popup-row"><span class="popup-key">Crop</span><span class="popup-val">${f.crop}</span></div>
+        <div class="popup-row"><span class="popup-key">Area</span><span class="popup-val">${f.area}</span></div>
+        <div class="popup-row"><span class="popup-key">Moisture</span><span class="popup-val">${f.moisture}%</span></div>
+        <div class="popup-row"><span class="popup-key">Status</span><span class="popup-badge ${c.status==='Optimal'?'pb-on':c.status==='Irrigating'?'pb-on pb-on':c.status==='Over-watered'?'pb-dry':'pb-off'}">${c.status}</span></div>
+        <div class="popup-row"><span class="popup-key">Valve</span><span class="popup-badge ${valve==='ON'?'pb-on':'pb-off'}">${valve}</span></div>
+      </div>`);
+    poly.bindPopup(popup);
+    fieldLayers.push(poly);
+  });
+}
+
+function renderSensors(){
+  clearLayer(sensorMarkers);
+  if(!layerState.sensors) return;
+  SENSORS.forEach(s=>{
+    const valve=getValveStatus(s.moisture);
+    const icon=L.divIcon({className:'',html:`<div style="width:20px;height:20px;background:rgba(168,85,247,0.15);border:2px solid #a855f7;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;animation:none;box-shadow:0 0 8px rgba(168,85,247,0.4)">📡</div>`,iconSize:[20,20],iconAnchor:[10,10]});
+    const m=L.marker([s.lat,s.lng],{icon}).addTo(map);
+    m.bindPopup(L.popup({maxWidth:200}).setContent(`
+      <div class="popup-inner">
+        <div class="popup-title">📡 Sensor ${s.id}</div>
+        <div class="popup-row"><span class="popup-key">Moisture</span><span class="popup-val">${s.moisture}%</span></div>
+        <div class="popup-row"><span class="popup-key">Temperature</span><span class="popup-val">${s.temp}°C</span></div>
+        <div class="popup-row"><span class="popup-key">Battery</span><span class="popup-val">${s.battery}%</span></div>
+        <div class="popup-row"><span class="popup-key">Field</span><span class="popup-val">${s.fieldId}</span></div>
+        <div class="popup-row"><span class="popup-key">Valve</span><span class="popup-badge ${valve==='ON'?'pb-on':'pb-off'}">${valve}</span></div>
+      </div>`));
+    sensorMarkers.push(m);
+  });
+}
+
+function renderValves(){
+  clearLayer(valveMarkers);
+  if(!layerState.valves) return;
+  VALVES.forEach(v=>{
+    const field=fieldData.find(f=>f.id===v.fieldId);
+    const moisture=field?field.moisture:50;
+    const status=getValveStatus(moisture);
+    const color=status==='ON'?'#38bdf8':'#ef4444';
+    const icon=L.divIcon({className:'',html:`<div style="width:18px;height:18px;background:rgba(${status==='ON'?'56,189,248':'239,68,68'},0.2);border:2px solid ${color};border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;box-shadow:0 0 6px ${color}88">🔵</div>`,iconSize:[18,18],iconAnchor:[9,9]});
+    const m=L.marker([v.lat,v.lng],{icon}).addTo(map);
+    m.bindPopup(L.popup({maxWidth:180}).setContent(`
+      <div class="popup-inner">
+        <div class="popup-title">🔵 Valve ${v.id}</div>
+        <div class="popup-row"><span class="popup-key">Name</span><span class="popup-val">${v.name}</span></div>
+        <div class="popup-row"><span class="popup-key">Field</span><span class="popup-val">${v.fieldId}</span></div>
+        <div class="popup-row"><span class="popup-key">Status</span><span class="popup-badge ${status==='ON'?'pb-on':'pb-off'}">${status}</span></div>
+        <div class="popup-row"><span class="popup-key">Moisture</span><span class="popup-val">${moisture}%</span></div>
+      </div>`));
+    valveMarkers.push(m);
+  });
+}
+
+function renderFactories(){
+  clearLayer(factoryMarkers);
+  if(!layerState.factories) return;
+  FACTORIES.forEach(f=>{
+    const icon=L.divIcon({className:'',html:`<div style="width:26px;height:26px;background:rgba(245,158,11,0.15);border:2px solid #f59e0b;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 10px rgba(245,158,11,0.3)">🏭</div>`,iconSize:[26,26],iconAnchor:[13,13]});
+    const m=L.marker([f.lat,f.lng],{icon}).addTo(map);
+    m.bindPopup(L.popup({maxWidth:220}).setContent(`
+      <div class="popup-inner">
+        <div class="popup-title">🏭 ${f.name}</div>
+        <div class="popup-row"><span class="popup-key">Type</span><span class="popup-val">${f.type}</span></div>
+        <div class="popup-row"><span class="popup-key">Transport Cost</span><span class="popup-val">${f.cost}</span></div>
+        <div class="popup-row"><span class="popup-key">Travel Time</span><span class="popup-val">${f.time}</span></div>
+        <div class="popup-row"><span class="popup-key">Distance</span><span class="popup-val">${f.dist}</span></div>
+      </div>`));
+    factoryMarkers.push(m);
+  });
+}
+
+function renderSoil(){
+  clearLayer(soilLayers);
+  if(!layerState.soil) return;
+  SOIL_ZONES.forEach(z=>{
+    const poly=L.polygon(z.coords,{fillColor:z.color,fillOpacity:1,color:'#8b5cf6',weight:1,dashArray:'4 4'}).addTo(map);
+    poly.bindPopup(L.popup({maxWidth:200}).setContent(`
+      <div class="popup-inner">
+        <div class="popup-title">🌍 Soil Zone</div>
+        <div class="popup-row"><span class="popup-key">Soil Type</span><span class="popup-val">${z.type}</span></div>
+        <div class="popup-row"><span class="popup-key">pH Level</span><span class="popup-val">${z.ph}</span></div>
+        <div class="popup-row"><span class="popup-key">Salinity</span><span class="popup-val">${z.salinity}</span></div>
+        <div class="popup-row"><span class="popup-key">Nitrogen</span><span class="popup-val">${z.nitrogen}</span></div>
+      </div>`));
+    soilLayers.push(poly);
+  });
+}
+
+function renderNetwork(){
+  clearLayer(netLayers);
+  if(!layerState.irrnet) return;
+  IRR_NETWORK.forEach(coords=>{
+    const line=L.polyline(coords,{color:'#38bdf8',weight:2.5,opacity:.7,dashArray:'8 4'}).addTo(map);
+    netLayers.push(line);
+  });
+}
+
+function renderAllLayers(){
+  renderNetwork();renderFields();renderSoil();renderSensors();renderValves();renderFactories();
+}
+
+// ==================== LAYER TOGGLES ====================
+function toggleLayer(key,el){
+  layerState[key]=!layerState[key];
+  el.classList.toggle('on',layerState[key]);
+  el.classList.toggle('off',!layerState[key]);
+  renderAllLayers();
+}
+
+// ==================== CHARTS ====================
+const chartDark={color:'rgba(125,211,252,0.7)',borderColor:'rgba(125,211,252,0.9)',gridColor:'rgba(26,48,37,0.6)',textColor:'#7fb89a'};
+
+function initCharts(){
+  // Water consumption bar chart
+  charts.water=new Chart(document.getElementById('chart-water'),{
+    type:'bar',
+    data:{
+      labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+      datasets:[{
+        label:'Consumption (m³)',
+        data:[1820,2100,1650,1980,2250,1400,1760],
+        backgroundColor:'rgba(56,189,248,0.35)',
+        borderColor:'#38bdf8',borderWidth:1.5,borderRadius:3
+      },{
+        label:'Saved',
+        data:[680,820,920,740,600,1050,870],
+        backgroundColor:'rgba(34,197,94,0.3)',
+        borderColor:'#22c55e',borderWidth:1.5,borderRadius:3
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:chartDark.textColor,font:{size:9}},grid:{color:chartDark.gridColor}},
+        y:{ticks:{color:chartDark.textColor,font:{size:9}},grid:{color:chartDark.gridColor}}
+      }}
+  });
+
+  // Donut chart
+  charts.donut=new Chart(document.getElementById('chart-donut'),{
+    type:'doughnut',
+    data:{
+      labels:['Optimal','Irrigating','Dry','Critical'],
+      datasets:[{data:[8,6,6,3],backgroundColor:['#22c55e','#38bdf8','#f59e0b','#ef4444'],borderWidth:0,hoverOffset:4}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{display:false}}}
+  });
+
+  // Trend chart
+  const trendHours=Array.from({length:24},(_, i)=>`${i}:00`);
+  const trendData=Array.from({length:24},(_,i)=>40+Math.sin(i/3)*25+Math.random()*8);
+  charts.trend=new Chart(document.getElementById('chart-trend'),{
+    type:'line',
+    data:{
+      labels:trendHours,
+      datasets:[{
+        label:'Avg Moisture',
+        data:trendData,
+        borderColor:'#4ade80',borderWidth:1.5,fill:true,
+        backgroundColor:'rgba(74,222,128,0.08)',
+        pointRadius:0,tension:.4
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:chartDark.textColor,font:{size:8},maxTicksLimit:8},grid:{color:chartDark.gridColor}},
+        y:{min:0,max:100,ticks:{color:chartDark.textColor,font:{size:8}},grid:{color:chartDark.gridColor}}
+      }}
+  });
+}
+
+// ==================== UI UPDATES ====================
+function updateUI(){
+  // Sensor table
+  const tbody=document.getElementById('sensor-tbody');
+  if(tbody){
+    tbody.innerHTML=SENSORS.map(s=>{
+      const valve=getValveStatus(s.moisture);
+      const color=valve==='ON'?'#22c55e':'#ef4444';
+      const pct=s.moisture;
+      const fillColor=pct<25?'#38bdf8':pct>80?'#92400e':pct<40?'#ef4444':'#22c55e';
+      return `<tr>
+        <td style="color:var(--text-primary);font-weight:500">${s.id}</td>
+        <td>${s.fieldId}</td>
+        <td><div style="display:flex;align-items:center;gap:4px">
+          <div class="moisture-bar"><div class="moisture-fill" style="width:${pct}%;background:${fillColor}"></div></div>
+          <span style="color:var(--text-primary);font-size:10px;min-width:25px">${pct}%</span></div></td>
+        <td><span class="status-dot" style="background:${color}"></span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Valve list
+  const vlist=document.getElementById('valve-list');
+  if(vlist){
+    vlist.innerHTML=VALVES.map(v=>{
+      const f=fieldData.find(fi=>fi.id===v.fieldId);
+      const m=f?f.moisture:50;
+      const status=getValveStatus(m);
+      return `<div class="valve-row">
+        <div class="valve-info">
+          <span class="valve-name">${v.id} — ${v.name}</span>
+          <span class="valve-field">Field ${v.fieldId} · ${m}% moisture</span>
+        </div>
+        <span class="valve-status ${status==='ON'?'valve-on':'valve-off'}">${status}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // KPI update
+  const irrigated=fieldData.filter(f=>f.moisture<DRY_THRESHOLD).length;
+  const dry=fieldData.filter(f=>f.moisture>=DRY_THRESHOLD&&f.moisture<40).length+fieldData.filter(f=>f.moisture>=40&&f.moisture<=WET_THRESHOLD&&f.moisture<25).length;
+  const dryCount=fieldData.filter(f=>f.moisture<40&&f.moisture>=DRY_THRESHOLD).length;
+  document.getElementById('kpi-irrigated').textContent=irrigated;
+  document.getElementById('kpi-dry').textContent=fieldData.filter(f=>f.moisture<40).length;
+
+  // Clock
+  updateClock();
+  document.getElementById('upd-time').textContent=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+
+function updateClock(){
+  const el=document.getElementById('sys-clock');
+  if(el) el.textContent=new Date().toLocaleTimeString('en-GB');
+}
+setInterval(updateClock,1000);
+
+// ==================== SIMULATION ====================
+function runSimulation(){
+  if(simInterval) clearInterval(simInterval);
+  const speed=parseInt(document.getElementById('sl-speed').value)||2;
+  simInterval=setInterval(()=>{
+    fieldData.forEach(f=>{
+      const valve=getValveStatus(f.moisture);
+      if(valve==='ON') f.moisture=Math.min(WET_THRESHOLD+5,f.moisture+(Math.random()*4+2));
+      else if(f.moisture>WET_THRESHOLD) f.moisture=Math.max(DRY_THRESHOLD-5,f.moisture-(Math.random()*3+1));
+      else f.moisture=Math.max(0,f.moisture-(Math.random()*2));
+      f.moisture=Math.round(f.moisture*10)/10;
+    });
+    // sync sensors
+    SENSORS.forEach(s=>{
+      const f=fieldData.find(fi=>fi.id===s.fieldId);
+      if(f) s.moisture=Math.round(f.moisture);
+    });
+    renderFields();renderValves();updateUI();
+  },2000/speed);
+}
+
+function refreshAll(){
+  clearInterval(simInterval);
+  fieldData=FIELDS.map(f=>({...f}));
+  SENSORS.forEach((s,i)=>s.moisture=SENSORS[i].moisture);
+  renderAllLayers();updateUI();
+}
+
+function allValvesOn(){fieldData.forEach(f=>{if(f.moisture>DRY_THRESHOLD) f.moisture=DRY_THRESHOLD-1;});renderAllLayers();updateUI();}
+function allValvesOff(){fieldData.forEach(f=>{if(f.moisture<WET_THRESHOLD) f.moisture=WET_THRESHOLD+1;});renderAllLayers();updateUI();}
+
+function updateThreshold(type,val){
+  if(type==='dry'){DRY_THRESHOLD=parseInt(val);document.getElementById('sv-dry').textContent=val+'%';}
+  else{WET_THRESHOLD=parseInt(val);document.getElementById('sv-wet').textContent=val+'%';}
+  renderFields();renderValves();updateUI();
+}
+
+// ==================== NAVIGATION ====================
+function setNav(el,section){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ==================== PAGE TRANSITIONS ====================
+function openDashboard(){
+  const landing=document.getElementById('landing');
+  const techSection=document.getElementById('tech-section');
+  const footer=document.getElementById('footer');
+  const dash=document.getElementById('dashboard');
+
+  landing.style.transition='opacity .5s';
+  landing.style.opacity='0';
+  setTimeout(()=>{
+    landing.style.display='none';
+    techSection.style.display='none';
+    footer.style.display='none';
+    dash.style.display='flex';
+    dash.style.opacity='0';
+    dash.style.transition='opacity .4s';
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      dash.style.opacity='1';
+      if(!map){setTimeout(()=>{initMap();initCharts();},100);}
+      else{setTimeout(()=>{map.invalidateSize();},100);}
+    }));
+  },500);
+}
+
+function closeDashboard(){
+  clearInterval(simInterval);
+  const dash=document.getElementById('dashboard');
+  dash.style.opacity='0';
+  setTimeout(()=>{
+    dash.style.display='none';
+    const landing=document.getElementById('landing');
+    const techSection=document.getElementById('tech-section');
+    const footer=document.getElementById('footer');
+    landing.style.display='flex';
+    techSection.style.display='block';
+    footer.style.display='block';
+    setTimeout(()=>{landing.style.opacity='1';},50);
+  },400);
+}
+
+// ==================== HERO COUNTER ANIMATION ====================
+function animateCounters(){
+  document.querySelectorAll('.hero-stat .val[data-target]').forEach(el=>{
+    const target=parseInt(el.dataset.target);
+    const suffix=el.dataset.suffix||'';
+    let current=0;
+    const step=Math.ceil(target/40);
+    const timer=setInterval(()=>{
+      current=Math.min(current+step,target);
+      el.textContent=current+suffix;
+      if(current>=target) clearInterval(timer);
+    },30);
+  });
+}
+
+// Init hero background map
+(function(){
+  const heroMap=L.map('map-bg',{center:[30.058,31.232],zoom:13,zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false});
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(heroMap);
+  // Add subtle field polygons on hero map
+  FIELDS.forEach(f=>{
+    L.polygon(f.coords,{fillColor:'rgba(34,197,94,0.2)',fillOpacity:1,color:'rgba(34,197,94,0.5)',weight:1}).addTo(heroMap);
+  });
+  setTimeout(()=>animateCounters(),300);
+})();
+</script>
+</body>
+</html>
